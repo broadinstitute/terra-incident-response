@@ -57,7 +57,7 @@ class IncidentMetrics:
     def __init__(self, bug, epic):
         self.bug = bug
         self.epic = epic
-        start_time = to_timestamp(self.bug.get('fields').get('customfield_10064'))
+        start_time = self.get_start_time()
 
         self.metrics = {
             'id': bug.get('id'),
@@ -76,7 +76,7 @@ class IncidentMetrics:
         self.metrics['time_to_issue_remediated'] = time_diff(start_time, to_timestamp(
             get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress'])))
         self.metrics['time_to_post_mortem_scheduled'] = time_diff(start_time, to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled')))
+            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['Needs Postmortem'])))
         self.metrics['time_to_post_mortem_complete'] = time_diff(start_time, to_timestamp(
             get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled'])))
 
@@ -91,6 +91,12 @@ class IncidentMetrics:
     def get_is_blocker(self):
         return self.bug.get('fields').get('priority').get('name') == 'Blocker'
 
+    def get_start_time(self):
+        start_time = to_timestamp(self.bug.get('fields').get('customfield_10064'))
+        if not start_time:
+            sys.exit('Error: Incident was not recorded through PagerDuty.')
+        return start_time
+
 
 def get_metrics(args, jira_epic):
     """
@@ -103,11 +109,18 @@ def get_metrics(args, jira_epic):
     From the metadata attached to these two tickets fetched by the Jira API, all incident
     metrics can be calculated.
     """
-    bugs = [i for i in jira_epic.get('fields').get('issuelinks')
-            if (i.get('outwardIssue').get('fields').get('issuetype').get('name') == 'Bug')]
-    if len(bugs) > 1:
-        sys.exit('Jira epic has more than one bug associated with it.')
-    jira_bug = get_jira_issue(args.apiUser, args.apiToken, bugs[0].get('outwardIssue').get('key'))
+    links = jira_epic.get('fields').get('issuelinks')
+    bugs = [i for i in links
+            if (i.get('outwardIssue', {}).get('fields', {}).get('issuetype', {}).get('name', {}) == 'Bug'
+                and i.get('outwardIssue', {}).get('fields', {}).get('status', {}).get('name') == 'Remediated') or
+            (i.get('inwardIssue', {}).get('fields', {}).get('issuetype', {}).get('name', {}) == 'Bug'
+             and i.get('inwardIssue', {}).get('fields', {}).get('status', {}).get('name') == 'Remediated')]
+
+    if len(bugs) != 1:
+        sys.exit('Jira epic has incorrect number of Remediated bugs linked to it.  Has {} bugs'.format(len(bugs)))
+
+    bug_id = bugs[0].get('outwardIssue', {}).get('key') or bugs[0].get('inwardIssue', {}).get('key')
+    jira_bug = get_jira_issue(args.apiUser, args.apiToken, bug_id)
 
     return IncidentMetrics(jira_bug, jira_epic)
 
@@ -163,5 +176,6 @@ if __name__ == '__main__':
     # when incident remediation is "over."
     epic = get_jira_issue(args.apiUser, args.apiToken, args.issue)
     metrics = get_metrics(args, epic)
+    print metrics.metrics
     send_metrics_to_bigquery(metrics.metrics, args.bigquerySvcAcct)
 
