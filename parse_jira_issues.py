@@ -76,7 +76,7 @@ class IncidentMetrics:
         self.metrics['time_to_issue_remediated'] = time_diff(start_time, to_timestamp(
             get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress'])))
         self.metrics['time_to_post_mortem_scheduled'] = time_diff(start_time, to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['Needs Postmortem'])))
+            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem'])))
         self.metrics['time_to_post_mortem_complete'] = time_diff(start_time, to_timestamp(
             get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled'])))
 
@@ -94,7 +94,7 @@ class IncidentMetrics:
     def get_start_time(self):
         start_time = to_timestamp(self.bug.get('fields').get('customfield_10064'))
         if not start_time:
-            sys.exit('Error: Incident was not recorded through PagerDuty.')
+            start_time = to_timestamp(self.bug.get('fields').get('created'))
         return start_time
 
 
@@ -140,6 +140,7 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
         svc_acct_path,
         scopes=["https://www.googleapis.com/auth/cloud-platform"],
     )
+
     client = bigquery.Client(credentials=credentials, project='terra-sla')
     dataset_id = 'sla'
     table_id = 'raw_metrics'
@@ -147,13 +148,14 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
     table_ref = dataset_ref.table(table_id)
 
     job_config = bigquery.LoadJobConfig()
-    job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
+    job_config.write_disposition = bigquery.WriteDisposition.WRITE_APPEND
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
     job_config.autodetect = True
 
     # table rows must be written to a file; currently the only way I know how to upload from a map
     jsonable_metrics = {k: (v.__str__() if (isinstance(v, datetime.time) or isinstance(v, datetime.datetime)) else v)
                         for k, v in metrics.iteritems()}
+
     with open('metrics.json', 'w') as write_file:
         json.dump(jsonable_metrics, write_file)
     with open('metrics.json', 'rb') as readfile:
