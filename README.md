@@ -13,7 +13,7 @@ We track metrics around "Blocker" and "Critical" type issues, and collect the fo
 We detect production incidents either manually or via alerts from PagerDuty, and track them as tickets in Jira.  The issue type (Blocker or Critical) corresponds to the ticket priority.  We can collect timestamps from these tools to measure the above metrics.
 
 | &nbsp; | Metric start | Metric end |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- |
 | time to issue addressed | PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug created |
 | time to issue remediated | PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug marked as "Remediated" |
 | time to users informed | PagerDuty alert if issue went through PD, else Jira bug creation time | Jira field "Users Informed" marked true |
