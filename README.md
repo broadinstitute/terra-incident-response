@@ -10,15 +10,39 @@ We track metrics around "Blocker" and "Critical" type issues, and collect the fo
 - time to users informed
 - time to post-mortem notes availible 
 
-We detect production incidents either manually or via alerts from PagerDuty, and track them as tickets in Jira.  The issue type (Blocker or Critical) corresponds to the ticket priority.  We can collect timestamps from these tools to measure the above metrics.
+We detect production incidents either manually or via alerts from PagerDuty.  For incidents that go through PagerDuty, the incident "begins" when the PagerDuty alert happens.  Otherwise, the incident "begins" when a ticket is created on the PROD Jira board.  We collect subsequent timestamps as the production ticket and follow up tickets move in Jira, corresponding to the remediation actions taken, as detailed in our [SDLC](https://docs.google.com/document/d/1rLUMry-VAWsewEz2mOLfdzH-7UKxuIn35VlzZH90CcI/edit#).  We use timestamps in these tools to gather metrics:
 
-| &nbsp; | Metric start | Metric end |
+|   | Metric start | Metric end |
 | --- | --- | --- |
 | time to issue addressed | PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug created |
 | time to issue remediated | PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug marked as "Remediated" |
 | time to users informed | PagerDuty alert if issue went through PD, else Jira bug creation time | Jira field "Users Informed" marked true |
 | time to post-mortem complete | PagerDuty alert if issue went through PD, else Jira bug creation time | Post-mortem epic marked as "Postmortem Meeting Complete" |
 
-Incident management is further detailed in our [SDLC](https://docs.google.com/document/d/1rLUMry-VAWsewEz2mOLfdzH-7UKxuIn35VlzZH90CcI/edit#). 
-
 ## How we collect metrics
+
+Metrics are collected by querying the Jira API for the two tickets associated with each incident: 1) the bug ticket for the actual incident and 2) the epic ticket to track the incident's post mortem. 
+
+The bug ticket caputres the following information:
+- incident start time (either via "Pagerduty incident start time" field or ticket creation time)
+- remediation time (time ticket was moved to "Remediated")
+- Incident priority (Blocker or Critical)
+- user contacted time (via "Users Informed" field)
+
+The epic ticket captures the following information:
+- time the post-mortem was scheduled (time ticket moved to "Postmortem Scheduled")
+- time the post-mortem was complete (time ticket moved to "Postmortem Complete")
+
+Parsed metrics are sent to a BigQuery table called ["raw metrics"](https://console.cloud.google.com/bigquery?organizationId=548622027621&project=terra-sla&p=terra-sla&d=sla&t=raw_metrics&page=table) in the `terra-sla` google project.  From here, metrics are exported to the adherence dashboard. 
+
+### Usage
+
+To load a set of metrics for a single incident:
+```
+./export_prod_jira.sh <epic ticket id>
+# ex) ./export_prod_jira.sh PROD-365
+```
+
+## Adherence Dashboard
+
+From the BigQuery metrics, adherence to our SLAs is tracked on [this dashboard](https://docs.google.com/spreadsheets/d/16vygDpdG638Gs5lc9rK_DzPaQfwQu_SrAbaE3Y7crYM/edit#gid=1317856783). 
