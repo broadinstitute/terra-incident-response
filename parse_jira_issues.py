@@ -14,8 +14,12 @@ def to_timestamp(time_str):
     return None
 
 
-def get_changelog_timestamp(changelog_list, changed_to, changed_from=[]):
+def get_changelog_timestamp(changelog_list, changed_to, changed_from=[], field=''):
     for i in changelog_list:
+        if field:
+            if i.get('items')[0].get('field') != field:
+                continue
+
         if i.get('items')[0].get('toString') == changed_to:
             if changed_from:
                 if i.get('items')[0].get('fromString') in changed_from:
@@ -58,6 +62,7 @@ class IncidentMetrics:
         self.bug = bug
         self.epic = epic
         start_time = self.get_start_time()
+        print('creating metrics for incident beginning at {}'.format(start_time))
 
         self.metrics = {
             'id': bug.get('id'),
@@ -79,10 +84,9 @@ class IncidentMetrics:
             get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem'])))
         self.metrics['time_to_post_mortem_complete'] = time_diff(start_time, to_timestamp(
             get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled'])))
-
-        # TODO when field exists on Jira tickets
-        # self.metrics['time_to_user_contacted'] = self.start_time - to_timestamp()
-        self.metrics['time_to_user_contacted'] = None
+        self.metrics['time_to_user_contacted'] = time_diff(
+            start_time, to_timestamp(
+                get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed')))
 
     def get_is_business_hours(self, start_time):
         # where "business hours" are defined as 9am - 5pm
@@ -111,14 +115,11 @@ def get_metrics(args, jira_epic):
     """
     links = jira_epic.get('fields').get('issuelinks')
     bugs = [i for i in links
-            if (i.get('outwardIssue', {}).get('fields', {}).get('issuetype', {}).get('name', {}) == 'Bug'
-                and i.get('outwardIssue', {}).get('fields', {}).get('status', {}).get('name') == 'Remediated') or
-            (i.get('inwardIssue', {}).get('fields', {}).get('issuetype', {}).get('name', {}) == 'Bug'
-             and i.get('inwardIssue', {}).get('fields', {}).get('status', {}).get('name') == 'Remediated')]
+            if (i.get('outwardIssue', {}).get('fields', {}).get('issuetype', {}).get('name', {}) == 'Bug') or
+            (i.get('inwardIssue', {}).get('fields', {}).get('issuetype', {}).get('name', {}) == 'Bug')]
 
-    if len(bugs) != 1:
+    if len(bugs) < 1:
         sys.exit('Jira epic has incorrect number of Remediated bugs linked to it.  Has {} bugs'.format(len(bugs)))
-
     bug_id = bugs[0].get('outwardIssue', {}).get('key') or bugs[0].get('inwardIssue', {}).get('key')
     jira_bug = get_jira_issue(args.apiUser, args.apiToken, bug_id)
 
