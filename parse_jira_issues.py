@@ -151,7 +151,8 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
     job_config = bigquery.LoadJobConfig()
     job_config.write_disposition = bigquery.WriteDisposition.WRITE_APPEND
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-    job_config.autodetect = True
+    # disabling this allows nulls to be uploaded correctly rather than interpreted as strings
+    # job_config.autodetect = True
 
     # table rows must be written to a file; currently the only way I know how to upload from a map
     jsonable_metrics = {k: (v.__str__() if (isinstance(v, datetime.time) or isinstance(v, datetime.datetime)) else v)
