@@ -6,11 +6,13 @@ import datetime
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import json
+from google.api_core.exceptions import BadRequest
+
 
 
 def to_timestamp(time_str):
     if time_str:
-        return parse(time_str)
+        return parse(time_str).replace(microsecond=0)
     return None
 
 
@@ -33,7 +35,7 @@ def get_changelog_timestamp(changelog_list, changed_to, changed_from=[], field='
 # Time diff with error handling for null case
 def time_diff(start, end):
     if start and end:
-        return (datetime.datetime.min + (end - start)).time()
+        return datetime.datetime.min + (end - start)
     return None
 
 
@@ -50,13 +52,15 @@ class IncidentMetrics:
 
     The metrics collected:
         - "id": (int) uuid of incident (Jira bug id)
+        - "issue_id": (str) Jira epic ticket #
         - "is_business_hours": (bool) if incident occurred during business hours (9am - 5pm)
         - "is_blocker": (bool) if the issue had priority "Blocker"
-        - "time_to_issue_addressed": (timestamp) diff between issue start time and when bug ticket was opened
-        - "time_to_user_contacted": (timestamp) diff between issue start time and when users were informed
-        - "time_to_issue_remediated": (timestamp) diff between issue start time and when issue was remediated
-        - "time_to_post_mortem_scheduled": (timestamp) diff between issue start time and when post-mortem scheduled
-        - "time_to_post_mortem_complete": (timestamp) diff between issue start time and when post-mortem completed
+        - "incident_timestamp": (timestamp) start time of incident
+        - "issue_addressed": (timestamp) when bug ticket was opened or page acknowledged
+        - "user_contacted": (timestamp) when users were informed
+        - "issue_remediated": (timestamp) when issue was remediated
+        - "mortem_scheduled": (timestamp) when post-mortem was scheduled
+        - "postmortem_complete": (timestamp) when post-mortem was completed
     """
     def __init__(self, bug, epic):
         self.bug = bug
@@ -68,7 +72,8 @@ class IncidentMetrics:
             'id': bug.get('id'),
             'is_business_hours': self.get_is_business_hours(start_time),
             'is_blocker': self.get_is_blocker(),
-            'incident_timestamp': start_time
+            'incident_timestamp': start_time,
+            'issue_id': epic.get('key')
         }
         self.set_time_deltas(start_time)
 
@@ -76,17 +81,15 @@ class IncidentMetrics:
         bug_changelog = self.bug.get('changelog').get('histories')
         epic_changelog = epic.get('changelog').get('histories')
 
-        self.metrics['time_to_issue_addressed'] = time_diff(
-            start_time, to_timestamp(self.bug.get('fields').get('created')))
-        self.metrics['time_to_issue_remediated'] = time_diff(start_time, to_timestamp(
-            get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress'])))
-        self.metrics['time_to_post_mortem_scheduled'] = time_diff(start_time, to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem'])))
-        self.metrics['time_to_post_mortem_complete'] = time_diff(start_time, to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled'])))
-        self.metrics['time_to_user_contacted'] = time_diff(
-            start_time, to_timestamp(
-                get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed')))
+        self.metrics['issue_addressed'] = to_timestamp(self.bug.get('fields').get('created'))
+        self.metrics['issue_remediated'] = to_timestamp(
+            get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress']))
+        self.metrics['mortem_scheduled'] = to_timestamp(
+            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem']))
+        self.metrics['postmortem_complete'] = to_timestamp(
+            get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled']))
+        self.metrics['user_contacted'] = to_timestamp(
+                get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed'))
 
     def get_is_business_hours(self, start_time):
         # where "business hours" are defined as 9am - 5pm
@@ -144,7 +147,7 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
 
     client = bigquery.Client(credentials=credentials, project='terra-sla')
     dataset_id = 'sla'
-    table_id = 'raw_metrics'
+    table_id = 'incident_metrics'
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 
@@ -161,7 +164,10 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
     with open('metrics.json', 'w') as write_file:
         json.dump(jsonable_metrics, write_file)
     with open('metrics.json', 'rb') as readfile:
-        job = client.load_table_from_file(readfile, table_ref, job_config=job_config)
+        try:
+            job = client.load_table_from_file(readfile, table_ref, job_config=job_config)
+        except BadRequest as ex:
+            print(ex)
 
     job.result()
     print("Loaded {} rows into {}:{}.".format(job.output_rows, dataset_id, table_id))
