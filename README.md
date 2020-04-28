@@ -33,7 +33,7 @@ The epic ticket captures the following information:
 - time the post-mortem was scheduled (time ticket moved to "Postmortem Scheduled")
 - time the post-mortem was complete (time ticket moved to "Postmortem Complete")
 
-Parsed metrics are sent to a BigQuery table called ["raw metrics"](https://console.cloud.google.com/bigquery?organizationId=548622027621&project=terra-sla&p=terra-sla&d=sla&t=raw_metrics&page=table) in the `terra-sla` google project.  From here, metrics are exported to the adherence dashboard. 
+Parsed metrics are sent to a BigQuery table called ["incident_metrics"](https://console.cloud.google.com/bigquery?project=terra-sla&p=terra-sla&d=sla&t=incident_metrics&page=table) in the `terra-sla` google project.  From here, metrics are exported to the adherence dashboard. 
 
 ### Usage
 
@@ -45,4 +45,4 @@ To load a set of metrics for a single incident:
 
 ## Adherence Dashboard
 
-From the BigQuery metrics, adherence to our SLAs is tracked on [this dashboard](https://docs.google.com/spreadsheets/d/16vygDpdG638Gs5lc9rK_DzPaQfwQu_SrAbaE3Y7crYM/edit#gid=1317856783). 
+From the BigQuery metrics, adherence to our SLAs is tracked on [this dashboard](https://datastudio.google.com/u/0/reporting/1jYdIsy7oqok8jC-d0OcCODdFqYwJR3HV/page/7GlNB). 
