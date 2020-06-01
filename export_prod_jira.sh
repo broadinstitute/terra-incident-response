@@ -9,8 +9,8 @@ JIRA_USER=jenkins-jira@broad.mit.edu
 docker run -e VAULT_TOKEN=$VAULT_TOKEN broadinstitute/dsde-toolbox vault read --format=json secret/dsde/terra/slas/jenkins-automation-service-account.json | jq -r .data > svcacct.json
 
 # Run locally (default)
-python parse_jira_issues.py --apiUser ${JIRA_USER} --apiToken ${JIRA_TOKEN} --issue ${JIRA_ISSUE} --bigquerySvcAcct svcacct.json --test
+python parse_jira_issues.py --apiUser ${JIRA_USER} --apiToken ${JIRA_TOKEN} --issue ${JIRA_ISSUE} --bigquerySvcAcct svcacct.json
 
 # Run in docker (for automation)
 #docker build -t sla-import .
-#docker run -v svcacct.json:/app sla-import python parse_jira_issues.py --apiUser ${JIRA_USER} --apiToken ${JIRA_TOKEN} --issue ${JIRA_ISSUE} --bigquerySvcAcct svcacct.json --test
+#docker run -v svcacct.json:/app sla-import python parse_jira_issues.py --apiUser ${JIRA_USER} --apiToken ${JIRA_TOKEN} --issue ${JIRA_ISSUE} --bigquerySvcAcct svcacct.json
