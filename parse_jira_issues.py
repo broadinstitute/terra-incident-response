@@ -125,6 +125,8 @@ def get_metrics(args, jira_epic):
         sys.exit('Jira epic has incorrect number of Remediated bugs linked to it.  Has {} bugs'.format(len(bugs)))
     bug_id = bugs[0].get('outwardIssue', {}).get('key') or bugs[0].get('inwardIssue', {}).get('key')
     jira_bug = get_jira_issue(args.apiUser, args.apiToken, bug_id)
+    with open('issue.json', 'w') as f:
+        json.dump(jira_bug, f)
 
     return IncidentMetrics(jira_bug, jira_epic)
 
@@ -179,13 +181,18 @@ if __name__ == '__main__':
     parser.add_argument('--apiToken')
     parser.add_argument('--issue')
     parser.add_argument('--bigquerySvcAcct')
+    parser.add_argument('--test', action='store_true')
 
     args = parser.parse_args()
-
+    
     # The epic moving to "post-mortem complete" is the entrypoint for collecting metrics, and marks
     # when incident remediation is "over."
     epic = get_jira_issue(args.apiUser, args.apiToken, args.issue)
     metrics = get_metrics(args, epic)
     print metrics.metrics
-    send_metrics_to_bigquery(metrics.metrics, args.bigquerySvcAcct)
+
+    if args.test:
+        print 'This is a test.  Not sending any data to Big Query.'
+    else:
+        send_metrics_to_bigquery(m2, args.bigquerySvcAcct)
 
