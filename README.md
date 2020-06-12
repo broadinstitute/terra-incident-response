@@ -46,3 +46,5 @@ To load a set of metrics for a single incident:
 ## Adherence Dashboard
 
 From the BigQuery metrics, adherence to our SLAs is tracked on [this dashboard](https://datastudio.google.com/u/0/reporting/1jYdIsy7oqok8jC-d0OcCODdFqYwJR3HV/page/7GlNB). 
+
+Metrics are uploaded at the end of post-mortems via [a Jenkins job](https://fc-jenkins.dsp-techops.broadinstitute.org/job/upload-terra-incident-metrics/).  At the post-mortem we'll also reflect on our adherence and opportunities for improvement to achieve a goal 95% adherence.
