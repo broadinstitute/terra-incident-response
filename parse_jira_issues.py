@@ -194,5 +194,5 @@ if __name__ == '__main__':
     if args.test:
         print 'This is a test.  Not sending any data to Big Query.'
     else:
-        send_metrics_to_bigquery(m2, args.bigquerySvcAcct)
+        send_metrics_to_bigquery(metrics.metrics, args.bigquerySvcAcct)
 
