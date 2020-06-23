@@ -83,7 +83,7 @@ class IncidentMetrics:
 
         self.metrics['issue_addressed'] = to_timestamp(self.bug.get('fields').get('created'))
         self.metrics['issue_remediated'] = to_timestamp(
-            get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress']))
+            get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress', 'On Dev']))
         self.metrics['mortem_scheduled'] = to_timestamp(
             get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem']))
         self.metrics['postmortem_complete'] = to_timestamp(
