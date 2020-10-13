@@ -53,7 +53,7 @@ class IncidentMetrics:
     The metrics collected:
         - "id": (int) uuid of incident (Jira bug id)
         - "issue_id": (str) Jira epic ticket #
-        - "is_business_hours": (bool) if incident occurred during business hours (9am - 5pm)
+        - "is_business_hours": (bool) if incident occurred during business hours (9am - 4pm)
         - "is_blocker": (bool) if the issue had priority "Blocker"
         - "incident_timestamp": (timestamp) start time of incident
         - "issue_addressed": (timestamp) when bug ticket was opened or page acknowledged
@@ -92,7 +92,7 @@ class IncidentMetrics:
                 get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed'))
 
     def get_is_business_hours(self, start_time):
-        # where "business hours" are defined as 9am - 5pm
+        # where "business hours" are defined as 9am - 4pm
         return datetime.time(9, 0, 0) <= start_time.time() <= datetime.time(16, 0, 0)
 
     def get_is_blocker(self):
