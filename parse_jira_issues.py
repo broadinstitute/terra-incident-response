@@ -93,7 +93,7 @@ class IncidentMetrics:
 
     def get_is_business_hours(self, start_time):
         # where "business hours" are defined as 9am - 5pm
-        return datetime.time(9, 0, 0) <= start_time.time() <= datetime.time(17, 0, 0)
+        return datetime.time(9, 0, 0) <= start_time.time() <= datetime.time(16, 0, 0)
 
     def get_is_blocker(self):
         return self.bug.get('fields').get('priority').get('name') == 'Blocker'
