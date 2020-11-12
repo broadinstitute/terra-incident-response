@@ -87,7 +87,7 @@ class IncidentMetrics:
         self.metrics['mortem_scheduled'] = to_timestamp(
             get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem']))
         self.metrics['postmortem_complete'] = to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled']))
+            get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled', 'Needs Postmortem']))
         self.metrics['user_contacted'] = to_timestamp(
                 get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed'))
 
