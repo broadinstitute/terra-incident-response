@@ -12,9 +12,24 @@ from google.api_core.exceptions import BadRequest
 
 def to_timestamp(time_str):
     if time_str:
-        return parse(time_str).replace(microsecond=0)
+        return parse(time_str, default=default_time()).replace(microsecond=0)
     return None
 
+def local_tz_string():
+    # Gets the offset from UTC time
+    # Returns a string of the format "-1", "+3"
+    # Eg: EST = -5 (EDT = -4)
+    local_time, utc_time = datetime.datetime.now(), datetime.datetime.utcnow()
+    time_diff = local_time-utc_time
+    time_diff_hrs = int(time_diff.days*24+round(time_diff.seconds/3600.0))
+    tz_string=str(time_diff_hrs)
+    if time_diff_hrs >=0:
+        tz_string = "+"+tz_string
+    return tz_string
+
+def default_time():
+    # Returns a timestamp with the local timezone offset (probably just local east coast time)
+    return parse("2000-01-01T01:00 "+local_tz_string())
 
 def get_changelog_timestamp(changelog_list, changed_to, changed_from=[], field=''):
     for i in changelog_list:
@@ -62,12 +77,12 @@ class IncidentMetrics:
         - "mortem_scheduled": (timestamp) when post-mortem was scheduled
         - "postmortem_complete": (timestamp) when post-mortem was completed
     """
-    def __init__(self, bug, epic):
+    def __init__(self, bug, epic, timestamps):
         self.bug = bug
         self.epic = epic
         start_time = self.get_start_time()
         print('creating metrics for incident beginning at {}'.format(start_time))
-
+        
         self.metrics = {
             'id': bug.get('id'),
             'is_business_hours': self.get_is_business_hours(start_time),
@@ -75,21 +90,31 @@ class IncidentMetrics:
             'incident_timestamp': start_time,
             'issue_id': epic.get('key')
         }
-        self.set_time_deltas(start_time)
+        self.set_time_deltas(start_time, timestamps)
 
-    def set_time_deltas(self, start_time):
+    def set_time_deltas(self, start_time, timestamps):
         bug_changelog = self.bug.get('changelog').get('histories')
         epic_changelog = epic.get('changelog').get('histories')
 
-        self.metrics['issue_addressed'] = to_timestamp(self.bug.get('fields').get('created'))
+        self.metrics['issue_addressed'] = to_timestamp(
+            timestamps.get('issue_addressed') or 
+            self.bug.get('fields').get('created')
+        )
         self.metrics['issue_remediated'] = to_timestamp(
-            get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress', 'On Dev']))
+            timestamps.get('issue_remediated') or 
+            get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress', 'On Dev'])
+        )
         self.metrics['mortem_scheduled'] = to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem']))
+            get_changelog_timestamp(epic_changelog, 'Postmortem Scheduled', changed_from=['To Do', 'Needs Postmortem'])
+        )
         self.metrics['postmortem_complete'] = to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled', 'Needs Postmortem']))
+            timestamps.get('postmortem_complete') or
+            get_changelog_timestamp(epic_changelog, 'Postmortem Meeting Complete', changed_from=['Postmortem Scheduled', 'Needs Postmortem'])
+        )
         self.metrics['user_contacted'] = to_timestamp(
-                get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed'))
+            timestamps.get('user_contacted') or
+            get_changelog_timestamp(bug_changelog, 'Yes', changed_from='No', field='Users Informed')
+        )
 
     def get_is_business_hours(self, start_time):
         # where "business hours" are defined as 9am - 4pm
@@ -125,11 +150,21 @@ def get_metrics(args, jira_epic):
         sys.exit('Jira epic has incorrect number of Remediated bugs linked to it.  Has {} bugs'.format(len(bugs)))
     bug_id = bugs[0].get('outwardIssue', {}).get('key') or bugs[0].get('inwardIssue', {}).get('key')
     jira_bug = get_jira_issue(args.apiUser, args.apiToken, bug_id)
+    timestamps = get_timestamp_dict(vars(args))
     with open('issue.json', 'w') as f:
         json.dump(jira_bug, f)
 
-    return IncidentMetrics(jira_bug, jira_epic)
+    return IncidentMetrics(jira_bug, jira_epic, timestamps)
 
+def get_timestamp_dict(timestamp_dict):
+    # print("Timestamp dict: ", vars(timestamp_dict))
+    def remove_time(s):
+        # Reformats "time_issue_addressed", an externally-facing key, to "issue_addressed", an internally-facing key.
+        return s.split('time_')[1]
+    # Add a timezone component here
+    timestamp_dict_keys = ['time_issue_addressed', 'time_issue_remediated', 'time_user_contacted', 'time_postmortem_complete']
+    timestamp_dict = {remove_time(key):timestamp_dict.get(key) for key in timestamp_dict_keys}
+    return timestamp_dict
 
 def get_jira_issue(api_user, api_token, issue):
     """
@@ -182,6 +217,10 @@ if __name__ == '__main__':
     parser.add_argument('--issue')
     parser.add_argument('--bigquerySvcAcct')
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('--time_issue_addressed')
+    parser.add_argument('--time_issue_remediated')
+    parser.add_argument('--time_user_contacted')
+    parser.add_argument('--time_postmortem_complete')
 
     args = parser.parse_args()
     
