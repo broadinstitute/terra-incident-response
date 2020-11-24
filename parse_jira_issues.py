@@ -1,4 +1,5 @@
 from dateutil.parser import *
+import dateutil
 import argparse
 import requests
 import sys
@@ -12,24 +13,23 @@ from google.api_core.exceptions import BadRequest
 
 def to_timestamp(time_str):
     if time_str:
-        return parse(time_str, default=default_time()).replace(microsecond=0)
+        return parse(time_str, default=default_time(time_str)).replace(microsecond=0)
     return None
 
-def local_tz_string():
-    # Gets the offset from UTC time
+def nyc_tz_string():
+    # Gets the offset from NYC (eastern) time
     # Returns a string of the format "-1", "+3"
     # Eg: EST = -5 (EDT = -4)
-    local_time, utc_time = datetime.datetime.now(), datetime.datetime.utcnow()
-    time_diff = local_time-utc_time
+    time_diff = dateutil.tz.gettz("America/New York").utcoffset(parse('2020-01-01 01:01'))
     time_diff_hrs = int(time_diff.days*24+round(time_diff.seconds/3600.0))
     tz_string=str(time_diff_hrs)
     if time_diff_hrs >=0:
         tz_string = "+"+tz_string
     return tz_string
 
-def default_time():
-    # Returns a timestamp with the local timezone offset (probably just local east coast time)
-    return parse("2000-01-01T01:00 "+local_tz_string())
+def default_time(time_str):
+    # Returns a timestamp with the timezone offset from NYC (eastern time)
+    return parse(time_str+" "+nyc_tz_string())
 
 def get_changelog_timestamp(changelog_list, changed_to, changed_from=[], field=''):
     for i in changelog_list:
