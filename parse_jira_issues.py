@@ -13,23 +13,23 @@ from google.api_core.exceptions import BadRequest
 
 def to_timestamp(time_str):
     if time_str:
-        return parse(time_str, default=default_time(time_str)).replace(microsecond=0)
+        # Note, the "default" here fills in blank fields; we use this to fill in timezone info for the naive timestamps
+        return parse(time_str, default=default_time()).replace(microsecond=0) 
     return None
 
 def nyc_tz_string():
     # Gets the offset from NYC (eastern) time
-    # Returns a string of the format "-1", "+3"
-    # Eg: EST = -5 (EDT = -4)
-    time_diff = dateutil.tz.gettz("America/New York").utcoffset(parse('2020-01-01 01:01'))
+    # Usually returns "-5" ("-4" during daylight savings)
+    time_diff = dateutil.tz.gettz('America/New York').utcoffset(parse('00:00'))
     time_diff_hrs = int(time_diff.days*24+round(time_diff.seconds/3600.0))
     tz_string=str(time_diff_hrs)
     if time_diff_hrs >=0:
         tz_string = "+"+tz_string
     return tz_string
 
-def default_time(time_str):
+def default_time():
     # Returns a timestamp with the timezone offset from NYC (eastern time)
-    return parse(time_str+" "+nyc_tz_string())
+    return parse('00:00 ' + nyc_tz_string())
 
 def get_changelog_timestamp(changelog_list, changed_to, changed_from=[], field=''):
     for i in changelog_list:
@@ -157,11 +157,9 @@ def get_metrics(args, jira_epic):
     return IncidentMetrics(jira_bug, jira_epic, timestamps)
 
 def get_timestamp_dict(timestamp_dict):
-    # print("Timestamp dict: ", vars(timestamp_dict))
     def remove_time(s):
         # Reformats "time_issue_addressed", an externally-facing key, to "issue_addressed", an internally-facing key.
         return s.split('time_')[1]
-    # Add a timezone component here
     timestamp_dict_keys = ['time_issue_addressed', 'time_issue_remediated', 'time_user_contacted', 'time_postmortem_complete']
     timestamp_dict = {remove_time(key):timestamp_dict.get(key) for key in timestamp_dict_keys}
     return timestamp_dict
