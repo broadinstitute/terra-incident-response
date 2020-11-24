@@ -24,7 +24,7 @@ def nyc_tz_string():
     time_diff_hrs = int(time_diff.days*24+round(time_diff.seconds/3600.0))
     tz_string=str(time_diff_hrs)
     if time_diff_hrs >=0:
-        tz_string = "+"+tz_string
+        tz_string = '+' + tz_string
     return tz_string
 
 def default_time():
