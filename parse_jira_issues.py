@@ -174,7 +174,7 @@ def get_jira_issue(api_user, api_token, issue):
     return r.json()
 
 
-def send_metrics_to_bigquery(metrics, svc_acct_path):
+def get_bigquery_meta(svc_acct_path):
     credentials = service_account.Credentials.from_service_account_file(
         svc_acct_path,
         scopes=["https://www.googleapis.com/auth/cloud-platform"],
@@ -186,6 +186,12 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 
+    return client, dataset_id, table_id, table_ref
+
+
+def send_metrics_to_bigquery(metrics, svc_acct_path, sql_action):
+    client, dataset_id, table_id, table_ref = get_bigquery_meta(svc_acct_path)
+
     job_config = bigquery.LoadJobConfig()
     job_config.write_disposition = bigquery.WriteDisposition.WRITE_APPEND
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
@@ -196,6 +202,16 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
     jsonable_metrics = {k: (v.__str__() if (isinstance(v, datetime.time) or isinstance(v, datetime.datetime)) else v)
                         for k, v in metrics.iteritems()}
 
+    if sql_action == 'update':
+        print('WARNING! Deleting existing row from table.')
+        query = 'DELETE FROM {}.{} WHERE issue_id="{}"'.format(dataset_id, table_id, metrics['issue_id'])
+        try:
+            job = client.query(query)
+        except BadRequest as ex:
+            print(ex)
+        job.result()
+        print('Deleted one row from {}:{}.').format(dataset_id, table_id)
+
     with open('metrics.json', 'w') as write_file:
         json.dump(jsonable_metrics, write_file)
     with open('metrics.json', 'rb') as readfile:
@@ -205,7 +221,7 @@ def send_metrics_to_bigquery(metrics, svc_acct_path):
             print(ex)
 
     job.result()
-    print("Loaded {} rows into {}:{}.".format(job.output_rows, dataset_id, table_id))
+    print('Loaded {} rows into {}:{}.'.format(job.output_rows, dataset_id, table_id))
 
 
 if __name__ == '__main__':
@@ -219,6 +235,11 @@ if __name__ == '__main__':
     parser.add_argument('--time_issue_remediated')
     parser.add_argument('--time_user_contacted')
     parser.add_argument('--time_postmortem_complete')
+    parser.add_argument('--sql_action', 
+        default = 'append', 
+        choices = ['append', 'update'], 
+        help = '"append" to append new row, "update" to overwrite existing row'
+    )
 
     args = parser.parse_args()
     
@@ -231,5 +252,5 @@ if __name__ == '__main__':
     if args.test:
         print 'This is a test.  Not sending any data to Big Query.'
     else:
-        send_metrics_to_bigquery(metrics.metrics, args.bigquerySvcAcct)
+        send_metrics_to_bigquery(metrics.metrics, args.bigquerySvcAcct, args.sql_action)
 
