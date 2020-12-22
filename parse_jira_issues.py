@@ -80,7 +80,7 @@ class IncidentMetrics:
     def __init__(self, bug, epic, timestamps):
         self.bug = bug
         self.epic = epic
-        start_time = self.get_start_time()
+        start_time = self.get_start_time(timestamps.get('incident_start_time'))
         print('creating metrics for incident beginning at {}'.format(start_time))
         
         self.metrics = {
@@ -123,11 +123,10 @@ class IncidentMetrics:
     def get_is_blocker(self):
         return self.bug.get('fields').get('priority').get('name') == 'Blocker'
 
-    def get_start_time(self):
-        start_time = to_timestamp(self.bug.get('fields').get('customfield_10064'))
-        if not start_time:
-            start_time = to_timestamp(self.bug.get('fields').get('created'))
-        return start_time
+    def get_start_time(self, manual_start_time):
+        start_time = manual_start_time or (self.bug.get('fields').get('customfield_10064') 
+            or self.bug.get('fields').get('created'))
+        return to_timestamp(start_time)
 
 
 def get_metrics(args, jira_epic):
@@ -231,6 +230,7 @@ if __name__ == '__main__':
     parser.add_argument('--issue')
     parser.add_argument('--bigquerySvcAcct')
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('--incident_start_time')
     parser.add_argument('--time_issue_addressed')
     parser.add_argument('--time_issue_remediated')
     parser.add_argument('--time_user_contacted')
