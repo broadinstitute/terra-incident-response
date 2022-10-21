@@ -90,9 +90,9 @@ class IncidentMetrics:
             'incident_timestamp': start_time,
             'issue_id': epic.get('key')
         }
-        self.set_time_deltas(start_time, timestamps)
+        self.set_time_deltas(timestamps)
 
-    def set_time_deltas(self, start_time, timestamps):
+    def set_time_deltas(self, timestamps):
         bug_changelog = self.bug.get('changelog').get('histories')
         epic_changelog = epic.get('changelog').get('histories')
 
@@ -105,11 +105,11 @@ class IncidentMetrics:
             get_changelog_timestamp(bug_changelog, 'Remediated', changed_from=['To Do', 'In Progress', 'On Dev'])
         )
         self.metrics['mortem_scheduled'] = to_timestamp(
-            get_changelog_timestamp(epic_changelog, 'incident review Scheduled', changed_from=['To Do', 'Needs incident review'])
+            get_changelog_timestamp(epic_changelog, 'Incident Review Scheduled', changed_from=['To Do', 'Needs Incident Review'])
         )
         self.metrics['postmortem_complete'] = to_timestamp(
             timestamps.get('postmortem_complete') or
-            get_changelog_timestamp(epic_changelog, 'incident review Meeting Complete', changed_from=['incident review Scheduled', 'Needs incident review'])
+            get_changelog_timestamp(epic_changelog, 'Incident Review Meeting Complete', changed_from=['Incident Review Scheduled', 'Needs Incident Review'])
         )
         self.metrics['user_contacted'] = to_timestamp(
             timestamps.get('user_contacted') or
@@ -182,7 +182,7 @@ def get_bigquery_meta(svc_acct_path):
 
     client = bigquery.Client(credentials=credentials, project='terra-sla')
     dataset_id = 'sla'
-    table_id = 'incident_metrics'
+    table_id = 'incident_metrics_dev'
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 
@@ -200,7 +200,7 @@ def send_metrics_to_bigquery(metrics, svc_acct_path, sql_action):
 
     # table rows must be written to a file; currently the only way I know how to upload from a map
     jsonable_metrics = {k: (v.__str__() if (isinstance(v, datetime.time) or isinstance(v, datetime.datetime)) else v)
-                        for k, v in metrics.iteritems()}
+                        for k, v in metrics.items()}
 
     if sql_action == 'update':
         print('WARNING! Deleting existing row from table.')
@@ -247,10 +247,9 @@ if __name__ == '__main__':
     # when incident remediation is "over."
     epic = get_jira_issue(args.apiUser, args.apiToken, args.issue)
     metrics = get_metrics(args, epic)
-    print metrics.metrics
 
     if args.test:
-        print 'This is a test.  Not sending any data to Big Query.'
+        print('This is a test.  Not sending any data to Big Query.')
     else:
         send_metrics_to_bigquery(metrics.metrics, args.bigquerySvcAcct, args.sql_action)
 
