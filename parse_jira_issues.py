@@ -182,7 +182,7 @@ def get_bigquery_meta(svc_acct_path):
 
     client = bigquery.Client(credentials=credentials, project='terra-sla')
     dataset_id = 'sla'
-    table_id = 'incident_metrics_dev'
+    table_id = 'incident_metrics'
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 
