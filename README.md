@@ -8,7 +8,7 @@ We track metrics around "Blocker" and "Critical" type issues, and collect the fo
 - time to issue addressed
 - time to issue remediated
 - time to users informed
-- time to post-mortem notes availible 
+- time to post-mortem notes available 
 
 We detect production incidents either manually or via alerts from PagerDuty.  For incidents that go through PagerDuty, the incident "begins" when the PagerDuty alert happens.  Otherwise, the incident "begins" when a ticket is created on the PROD Jira board.  We collect subsequent timestamps as the production ticket and follow up tickets move in Jira, corresponding to the remediation actions taken, as detailed in our [SDLC](https://docs.google.com/document/d/1rLUMry-VAWsewEz2mOLfdzH-7UKxuIn35VlzZH90CcI/edit#).  We use timestamps in these tools to gather metrics:
 
