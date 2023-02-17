@@ -15,9 +15,9 @@ We detect production incidents either manually or via alerts from PagerDuty.  Fo
 |   | Metric start | Metric end |
 | --- | --- | --- |
 | time to issue addressed | `Incident Start Time` Jira field value, else PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug created |
-| time to issue remediated | `Incident Start Time` Jira field value, else PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug marked as "Remediated" |
+| time to issue remediated | `Incident Start Time` Jira field value, else PagerDuty alert if issue went through PD, else Jira bug creation time | Jira bug status marked as `Remediated` |
 | time to users informed | `Incident Start Time` Jira field value, else PagerDuty alert if issue went through PD, else Jira bug creation time | Jira field "Users Informed" marked `True` |
-| time to post-mortem complete | PagerDuty alert if issue went through PD, else Jira bug creation time | Post-mortem epic marked as "Postmortem Meeting Complete" |
+| time to post-mortem complete | PagerDuty alert if issue went through PD, else Jira bug creation time | Post-mortem epic status marked as `Postmortem Meeting Complete` |
 
 ## How we collect metrics
 
